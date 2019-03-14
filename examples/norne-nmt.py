@@ -2,14 +2,16 @@ import pandas as pd
 import warnings
 import os
 import sys
+import codecs
 import torch
 from modules import BertNerData as NerData
 from modules import NerLearner
 from modules.models.bert_models import BertBiLSTMAttnNMT
-
 from modules.data.bert_data import get_bert_data_loader_for_predict
 from modules.train.train import validate_step
-from modules.utils.plot_metrics import get_bert_span_report
+from modules.utils.plot_metrics import get_bert_span_report, bert_preds_to_ys, bert_preds_to_y, \
+    write_true_and_pred_to_conll, flat_classification_report
+from pathlib import Path
 
 sys.path.append("../")
 
@@ -20,8 +22,6 @@ data_path = "/media/liah/DATA/ner_data_other/norne/"
 train_path = data_path + "train.txt"
 dev_path = data_path + "valid.txt"
 test_path = data_path + "test.txt"
-
-import codecs
 
 
 def read_data(input_file):
@@ -54,7 +54,6 @@ def read_data(input_file):
         return lines
 
 
-
 train_f = read_data(train_path)
 dev_f = read_data(dev_path)
 test_f = read_data(test_path)
@@ -85,23 +84,50 @@ sup_labels = ['B_ORG', 'B_MISC', 'B_PER', 'I_PER', 'B_LOC', 'I_LOC', 'I_ORG', 'I
 model = BertBiLSTMAttnNMT.create(len(data.label2idx), bert_config_file, init_checkpoint_pt,
                                  enc_hidden_dim=128, dec_hidden_dim=128, dec_embedding_dim=16)
 
-num_epochs = 30
-learner = NerLearner(model, data,
-                     best_model_path=model_dir + "conll-2003/bilstm_attn_cased.cpt",
-                     lr=0.01, clip=1.0, sup_labels=data.id2label[5:],
-                     t_total=num_epochs * len(data.train_dl))
 
-learner.fit(num_epochs, target_metric='prec')
+def train(model, num_epochs=30, ):
+    learner = NerLearner(model, data,
+                         best_model_path=model_dir + "conll-2003/bilstm_attn_cased.cpt",
+                         lr=0.01, clip=1.0, sup_labels=data.id2label[5:],
+                         t_total=num_epochs * len(data.train_dl))
 
-dl = get_bert_data_loader_for_predict(data_path + "valid.csv", learner)
+    learner.fit(num_epochs, target_metric='prec')
 
-learner.load_model()
+    dl = get_bert_data_loader_for_predict(data_path + "valid.csv", learner)
 
-preds = learner.predict(dl)
+    learner.load_model()
+
+    preds = learner.predict(dl)
+
+    print(validate_step(learner.data.valid_dl, learner.model, learner.data.id2label, learner.sup_labels))
+
+    clf_report = get_bert_span_report(dl, preds, [])
+    print(clf_report)
 
 
-print(validate_step(learner.data.valid_dl, learner.model, learner.data.id2label, learner.sup_labels))
+def pred(model, best_model_path,
+         result_conll_path,
+         fname="test.csv"):
+    learner = NerLearner(model, data,
+                         best_model_path=model_dir + "conll-2003/bilstm_attn_cased.cpt",
+                         lr=0.01, clip=1.0, sup_labels=data.id2label[5:])
+    dl = get_bert_data_loader_for_predict(data_path + fname, learner)
+
+    learner.load_model(best_model_path)
+
+    preds = learner.predict(dl)
+
+    tokens, y_true, y_pred, set_labels = bert_preds_to_y(dl, preds)
+    tokens, y_true, y_pred, set_labels = bert_preds_to_ys(dl, preds)
+    clf_report = flat_classification_report(y_true, y_pred, set_labels, digits=3)
+
+    # clf_report = get_bert_span_report(dl, preds)
+    print(clf_report)
+
+    write_true_and_pred_to_conll(tokens=tokens, y_true=y_true, y_pred=y_pred, conll_fpath=result_conll_path)
 
 
-clf_report = get_bert_span_report(dl, preds, [])
-print(clf_report)
+result_conll_path = Path('/media/liah/DATA/log/company_tagging_no/bert_norne.conll')
+pred(model=model,
+     result_conll_path=result_conll_path,
+     best_model_path=model_dir + "conll-2003/bilstm_attn_cased.cpt")

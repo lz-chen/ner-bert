@@ -241,6 +241,7 @@ def get_data(
             cls_idx = cls2idx[cls]
         if is_meta:
             meta = meta_tokens
+        # check tok_map
         features.append(InputFeatures(
             # Bert data
             bert_tokens=bert_tokens,

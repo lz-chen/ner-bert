@@ -7,7 +7,7 @@ from .optimization import BertAdam
 import json
 from modules.data.bert_data import BertNerData
 from modules.models.released_models import released_models
-
+import os
 
 logging.basicConfig(level=logging.INFO)
 
@@ -57,7 +57,7 @@ def transformed_result(preds, mask, id2label, target_all=None, pad_idx=0):
                 targets_cpu.append([id2label[w] for w in sent_t])
     else:
         for batch_p, batch_m in zip(preds, mask):
-            
+
             for pred, bm in zip(batch_p, batch_m):
                 assert len(pred) == len(bm)
                 bm = bm.sum().cpu().data.tolist()
@@ -68,7 +68,7 @@ def transformed_result(preds, mask, id2label, target_all=None, pad_idx=0):
     else:
         return preds_cpu
 
-    
+
 def transformed_result_cls(preds, target_all, cls2label, return_target=True):
     preds_cpu = []
     targets_cpu = []
@@ -125,7 +125,7 @@ def predict(dl, model, id2label, id2cls=None):
         for idx, sidx in enumerate(sorted_idx):
             unsorted_pred[sidx] = preds[idx]
             unsorted_mask[sidx] = labels_mask[idx]
-        
+
         preds_cpu_ = transformed_result([unsorted_pred], [unsorted_mask], id2label)
         preds_cpu.extend(preds_cpu_)
     if id2cls is not None:
@@ -251,11 +251,15 @@ class NerLearner(object):
         if self.data.is_cls:
             return predict(dl, self.model, self.data.id2label, self.data.id2cls)
         return predict(dl, self.model, self.data.id2label)
-    
+
     def save_model(self, path=None):
         path = path if path else self.best_model_path
-        torch.save(self.model.state_dict(), path)
-    
+        try:
+            torch.save(self.model.state_dict(), path)
+        except FileNotFoundError:
+            os.makedirs(os.path.dirname(path))
+            torch.save(self.model.state_dict(), path)
+
     def load_model(self, path=None):
         path = path if path else self.best_model_path
         self.model.load_state_dict(torch.load(path))
