@@ -18,11 +18,13 @@ sys.path.append("../")
 warnings.filterwarnings("ignore")
 
 # data_path = "/media/liah/DATA/ner_data_other/norne/"
-# data_path = "/media/liah/DATA/ner_data_acme/datadump_article_no/conll_format_combined/"
-data_path = "/media/liah/DATA/ner_data_acme/datadump_article_no/conll/"
+data_path = "/media/liah/DATA/ner_data_acme/datadump_article_no/conll_format/"
+# data_path = "/media/liah/DATA/ner_data_acme/datadump_article_no/conll/"
 train_path = data_path + "train.conll"
 dev_path = data_path + "valid.conll"
 test_path = data_path + "test.conll"
+
+result_conll_path = Path('/media/liah/DATA/log/company_tagging_no/bert_acme_all.conll')
 
 
 def read_data(input_file, tkn_field_idx=0, label_field_idx=-1):
@@ -136,8 +138,6 @@ def pred(model, best_model_path,
 
     write_true_and_pred_to_conll(tokens=tokens, y_true=y_true, y_pred=y_pred, conll_fpath=result_conll_path)
 
-
-result_conll_path = Path('/media/liah/DATA/log/company_tagging_no/bert_acme_test.conll')
 pred(model=model,
      result_conll_path=result_conll_path,
      best_model_path=model_dir + "conll-2003/bilstm_attn_cased.cpt")

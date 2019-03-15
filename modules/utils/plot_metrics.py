@@ -64,7 +64,9 @@ def get_mean_max_metric(history, metric_="f1", return_idx=False):
     return res
 
 
-def bert_preds_to_y(dl, preds, ignore_labels=["O"], fn=first_choicer):  # original
+def bert_preds_to_y(dl, preds, ignore_labels=["O"],
+                    predefined_set_labels={'ORG', 'PER', 'DRV', 'GPE', 'PROD', 'MISC', 'EVT', 'LOC'},
+                    fn=first_choicer):  # original
     tokens, labels = bert_labels2tokens(dl, preds, fn)
     spans_pred = tokens2spans(tokens, labels)  # list of (span, pred_tag), span can be more than one token
     tokens, labels = bert_labels2tokens(dl, [x.labels for x in dl.dataset], fn)
@@ -76,6 +78,7 @@ def bert_preds_to_y(dl, preds, ignore_labels=["O"], fn=first_choicer):  # origin
         while len(spans_pred[idx]) > len(spans_true[idx]):
             spans_true[idx].append(("O", "O"))
         set_labels.update([y for x, y in spans_true[idx]])
+    set_labels = predefined_set_labels if len(set_labels) == 0 else set_labels
     set_labels -= set(ignore_labels)
     y_true, y_pred = [[y[1] for y in x] for x in spans_true], [[y[1] for y in x] for x in spans_pred]
     return tokens, y_true, y_pred, list(set_labels)
@@ -116,18 +119,6 @@ def _clean_tags(tag_sequences):
 
 
 def get_bert_span_report(dl, preds, ignore_labels=["O"], fn=first_choicer):
-    # tokens, labels = bert_labels2tokens(dl, preds, fn)
-    # spans_pred = tokens2spans(tokens, labels)
-    # tokens, labels = bert_labels2tokens(dl, [x.labels for x in dl.dataset], fn)
-    # spans_true = tokens2spans(tokens, labels)
-    # set_labels = set()
-    # for idx in range(len(spans_pred)):
-    #     while len(spans_pred[idx]) < len(spans_true[idx]):
-    #         spans_pred[idx].append(("", "O"))
-    #     while len(spans_pred[idx]) > len(spans_true[idx]):
-    #         spans_true[idx].append(("O", "O"))
-    #     set_labels.update([y for x, y in spans_true[idx]])
-    # set_labels -= set(ignore_labels)
     _, y_true, y_pred, set_labels = bert_preds_to_y(dl, preds, ignore_labels, fn)
     return flat_classification_report(y_true, y_pred, set_labels, digits=3)
 

@@ -178,7 +178,10 @@ def get_data(
         text = text.replace("\ue105", "unk")
         text = text.replace("\ue415", "unk")
         # 0 with space
-        text = text.replace("\u200b", "unk")
+        # text = text.replace("\u200b", "unk")
+        # text = text.replace("\x96", "unk")
+        # text = text.replace("\ufeff", "unk")
+
         text = text.replace('\x07', "unk")
         orig_tokens.extend(str(text).split())
         labels = str(labels).split()
@@ -266,7 +269,7 @@ def get_data(
         assert len(input_ids) == len(input_type_ids)
         if len(input_ids) != len(labels_ids):
             print(len(input_ids), len(labels_ids), orig_tokens)
-            raise
+            raise RuntimeError
         assert len(input_ids) == len(labels_mask)
     if is_cls:
         return features, (label2idx, cls2idx)
