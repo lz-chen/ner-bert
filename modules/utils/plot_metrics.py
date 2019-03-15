@@ -81,11 +81,16 @@ def bert_preds_to_y(dl, preds, ignore_labels=["O"], fn=first_choicer):  # origin
     return tokens, y_true, y_pred, list(set_labels)
 
 
-def bert_preds_to_ys(dl, preds, ignore_labels=["O"], fn=first_choicer):
+def bert_preds_to_ys(dl,
+                     preds,
+                     ignore_labels=["O"],
+                     predefined_set_labels={'ORG', 'PER', 'DRV', 'GPE', 'PROD', 'MISC', 'EVT', 'LOC'},
+                     fn=first_choicer):
     pred_tokens, pred_labels = bert_labels2tokens(dl, preds, fn)
     true_tokens, true_labels = bert_labels2tokens(dl, [x.labels for x in dl.dataset], fn)
     pred_labels, set_labels = _clean_tags(pred_labels)
     true_labels, set_labels = _clean_tags(true_labels)
+    set_labels = predefined_set_labels if len(set_labels) == 0 else set_labels
     set_labels -= set(ignore_labels)
     assert all(len(pred_tokens[i]) == len(pred_labels[i]) for i in range(len(pred_tokens))) is True
     assert all(len(pred_tokens[i]) == len(true_tokens[i]) for i in range(len(pred_tokens))) is True

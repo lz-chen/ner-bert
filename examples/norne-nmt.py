@@ -17,14 +17,15 @@ sys.path.append("../")
 
 warnings.filterwarnings("ignore")
 
-data_path = "/media/liah/DATA/ner_data_other/norne/"
+# data_path = "/media/liah/DATA/ner_data_other/norne/"
+# data_path = "/media/liah/DATA/ner_data_acme/datadump_article_no/conll_format_combined/"
+data_path = "/media/liah/DATA/ner_data_acme/datadump_article_no/conll/"
+train_path = data_path + "train.conll"
+dev_path = data_path + "valid.conll"
+test_path = data_path + "test.conll"
 
-train_path = data_path + "train.txt"
-dev_path = data_path + "valid.txt"
-test_path = data_path + "test.txt"
 
-
-def read_data(input_file):
+def read_data(input_file, tkn_field_idx=0, label_field_idx=-1):
     """Reads a BIO data."""
     with codecs.open(input_file, "r", encoding="utf-8") as f:
         lines = []
@@ -40,8 +41,8 @@ def read_data(input_file):
                 words = []
                 labels = []
                 continue
-            word = line.strip().split('\t')[1]
-            label = line.strip().split('\t')[-1]
+            word = line.rstrip().split('\t')[tkn_field_idx]
+            label = line.rstrip().split('\t')[label_field_idx]
             if contends.startswith("-DOCSTART-"):
                 words.append('')
                 continue
@@ -62,6 +63,7 @@ train_df = pd.DataFrame(train_f, columns=["0", "1"])
 train_df.to_csv(data_path + "train.csv", index=False)
 
 valid_df = pd.DataFrame(dev_f, columns=["0", "1"])
+
 valid_df.to_csv(data_path + "valid.csv", index=False)
 
 test_df = pd.DataFrame(test_f, columns=["0", "1"])
@@ -78,11 +80,20 @@ vocab_file = os.path.join(model_dir, "vocab.txt")
 
 torch.cuda.is_available(), torch.cuda.current_device()
 
-data = NerData.create(train_path, valid_path, vocab_file)
+# data = NerData.create(train_path, valid_path, vocab_file)
+label2idx = {'<pad>': 0, '[CLS]': 1, 'B_O': 2, 'X': 3, 'B_PROD': 4, 'I_PROD': 5, 'B_LOC': 6, 'B_PER': 7, 'I_PER': 8,
+             'B_GPE': 9, 'B_ORG': 10, 'B_DRV': 11, 'I_ORG': 12, 'I_DRV': 13, 'B_MISC': 14, 'I_GPE': 15, 'I_LOC': 16,
+             'B_EVT': 17, 'I_EVT': 18, 'I_MISC': 19}
+cls2idx = None
+data = NerData.create(train_path, valid_path, vocab_file, for_train=False,
+                      label2idx=label2idx, cls2idx=cls2idx)
+
 sup_labels = ['B_ORG', 'B_MISC', 'B_PER', 'I_PER', 'B_LOC', 'I_LOC', 'I_ORG', 'I_MISC']
 
 model = BertBiLSTMAttnNMT.create(len(data.label2idx), bert_config_file, init_checkpoint_pt,
-                                 enc_hidden_dim=128, dec_hidden_dim=128, dec_embedding_dim=16)
+                                 enc_hidden_dim=128,
+                                 dec_hidden_dim=128,
+                                 dec_embedding_dim=16)
 
 
 def train(model, num_epochs=30, ):
@@ -117,7 +128,6 @@ def pred(model, best_model_path,
 
     preds = learner.predict(dl)
 
-    tokens, y_true, y_pred, set_labels = bert_preds_to_y(dl, preds)
     tokens, y_true, y_pred, set_labels = bert_preds_to_ys(dl, preds)
     clf_report = flat_classification_report(y_true, y_pred, set_labels, digits=3)
 
@@ -127,7 +137,7 @@ def pred(model, best_model_path,
     write_true_and_pred_to_conll(tokens=tokens, y_true=y_true, y_pred=y_pred, conll_fpath=result_conll_path)
 
 
-result_conll_path = Path('/media/liah/DATA/log/company_tagging_no/bert_norne.conll')
+result_conll_path = Path('/media/liah/DATA/log/company_tagging_no/bert_acme_test.conll')
 pred(model=model,
      result_conll_path=result_conll_path,
      best_model_path=model_dir + "conll-2003/bilstm_attn_cased.cpt")

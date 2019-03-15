@@ -177,6 +177,8 @@ def get_data(
         text = text.replace("\ue405", "unk")
         text = text.replace("\ue105", "unk")
         text = text.replace("\ue415", "unk")
+        # 0 with space
+        text = text.replace("\u200b", "unk")
         text = text.replace('\x07', "unk")
         orig_tokens.extend(str(text).split())
         labels = str(labels).split()
@@ -193,7 +195,7 @@ def get_data(
                 prev_label = label
             else:
                 prev_label = label
-            
+
             cur_tokens = tokenizer.tokenize(orig_token)
             if max_seq_len - 1 < len(bert_tokens) + len(cur_tokens):
                 break
@@ -267,7 +269,6 @@ def get_data(
             raise
         assert len(input_ids) == len(labels_mask)
     if is_cls:
-        
         return features, (label2idx, cls2idx)
     return features, label2idx
 
@@ -379,7 +380,7 @@ class BertNerData(object):
     @classmethod
     def create(cls,
                train_path, valid_path, vocab_file, batch_size=16, cuda=True, is_cls=False,
-               data_type="bert_cased", max_seq_len=424, is_meta=False):
+               data_type="bert_cased", max_seq_len=424, is_meta=False, for_train=True, label2idx={}, cls2idx={}):
         if data_type == "bert_cased":
             do_lower_case = False
             fn = get_bert_data_loaders
@@ -388,6 +389,12 @@ class BertNerData(object):
             fn = get_bert_data_loaders
         else:
             raise NotImplementedError("No requested mode :(.")
-        return cls(train_path, valid_path, vocab_file, data_type, *fn(
-            train_path, valid_path, vocab_file, batch_size, cuda, is_cls, do_lower_case, max_seq_len, is_meta),
-                   batch_size=batch_size, cuda=cuda, is_meta=is_meta)
+
+        if for_train:
+            return cls(train_path, valid_path, vocab_file, data_type, *fn(
+                train_path, valid_path, vocab_file, batch_size, cuda, is_cls, do_lower_case, max_seq_len, is_meta),
+                       batch_size=batch_size, cuda=cuda, is_meta=is_meta)
+        else:
+            return cls(train_path, valid_path, vocab_file, data_type, *(None, None, tokenization.FullTokenizer(
+                vocab_file, do_lower_case=do_lower_case), label2idx, max_seq_len, cls2idx),
+                       batch_size=batch_size, cuda=cuda, is_meta=is_meta)
