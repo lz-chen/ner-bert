@@ -29,14 +29,14 @@ def voting_choicer(tok_map, labels):
         if origin_idx < 0:
             break
     assert "[SEP]" not in label
-    
+
     return label
 
 
 def first_choicer(tok_map, labels):
     label = []
     prev_idx = 0
-    for origin_idx in tok_map:
+    for origin_idx in tok_map: # tok_map: map from text_token_idx to bert_token_idx
         l = labels[prev_idx]
         if l in ["X"]:
             l = "B_O"

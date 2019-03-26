@@ -187,7 +187,7 @@ def get_data(
         labels = str(labels).split()
         pad_idx = label2idx[pad]
         assert len(orig_tokens) == len(labels)
-        # prev_label = ""
+        prev_label = ""
         for idx_, (orig_token, label) in enumerate(zip(orig_tokens, labels)):
             # Fix BIO to IO as BERT proposed https://arxiv.org/pdf/1810.04805.pdf
             prefix = "B_"

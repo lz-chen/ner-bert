@@ -17,14 +17,12 @@ sys.path.append("../")
 
 warnings.filterwarnings("ignore")
 
-# data_path = "/media/liah/DATA/ner_data_other/norne/"
-data_path = "/media/liah/DATA/ner_data_acme/datadump_article_no/conll_format/"
-# data_path = "/media/liah/DATA/ner_data_acme/datadump_article_no/conll/"
-train_path = data_path + "train.conll"
-dev_path = data_path + "valid.conll"
-test_path = data_path + "test.conll"
+data_path = "/media/liah/DATA/ner_data_other/ontonote/"
+train_path = data_path + "onto.train.ner"
+dev_path = data_path + "onto.development.ner"
+test_path = data_path + "onto.test.ner"
 
-result_conll_path = Path('/media/liah/DATA/log/company_tagging_no/bert_acme_all.conll')
+result_conll_path = Path('/media/liah/DATA/log/company_tagging/bert_ontonote.conll')
 
 
 def read_data(input_file, tkn_field_idx=0, label_field_idx=-1):
@@ -39,7 +37,8 @@ def read_data(input_file, tkn_field_idx=0, label_field_idx=-1):
                 # empty line, means a sentence is finished
                 l = ' '.join([label for label in labels if len(label) > 0])
                 w = ' '.join([word for word in words if len(word) > 0])
-                lines.append([l, w])
+                if len(l) != 0 and len(w) != 0:
+                    lines.append([l, w])
                 words = []
                 labels = []
                 continue
@@ -75,7 +74,8 @@ train_path = data_path + "train.csv"
 valid_path = data_path + "valid.csv"
 test_path = data_path + "test.csv"
 
-model_dir = "/media/liah/DATA/pretrained_models/bert/multi_cased_L-12_H-768_A-12/"
+# model_dir = "/media/liah/DATA/pretrained_models/bert/multi_cased_L-12_H-768_A-12/"
+model_dir = '/media/liah/DATA/pretrained_models/bert/cased_L-24_H-1024_A-16'
 init_checkpoint_pt = os.path.join(model_dir, "pytorch_model.bin")
 bert_config_file = os.path.join(model_dir, "bert_config.json")
 vocab_file = os.path.join(model_dir, "vocab.txt")
@@ -83,28 +83,29 @@ vocab_file = os.path.join(model_dir, "vocab.txt")
 torch.cuda.is_available(), torch.cuda.current_device()
 
 # data = NerData.create(train_path, valid_path, vocab_file)
-label2idx = {'<pad>': 0, '[CLS]': 1, 'B_O': 2, 'X': 3, 'B_PROD': 4, 'I_PROD': 5, 'B_LOC': 6, 'B_PER': 7, 'I_PER': 8,
-             'B_GPE': 9, 'B_ORG': 10, 'B_DRV': 11, 'I_ORG': 12, 'I_DRV': 13, 'B_MISC': 14, 'I_GPE': 15, 'I_LOC': 16,
-             'B_EVT': 17, 'I_EVT': 18, 'I_MISC': 19}
-cls2idx = None
-data = NerData.create(train_path, valid_path, vocab_file, for_train=False,
-                      label2idx=label2idx, cls2idx=cls2idx)
+# label2idx = {'<pad>': 0, '[CLS]': 1, 'B_O': 2, 'X': 3, 'B_PROD': 4, 'I_PROD': 5, 'B_LOC': 6, 'B_PER': 7, 'I_PER': 8,
+#              'B_GPE': 9, 'B_ORG': 10, 'B_DRV': 11, 'I_ORG': 12, 'I_DRV': 13, 'B_MISC': 14, 'I_GPE': 15, 'I_LOC': 16,
+#              'B_EVT': 17, 'I_EVT': 18, 'I_MISC': 19}
+# cls2idx = None
+# data = NerData.create(train_path, valid_path, vocab_file, for_train=False,
+#                       label2idx=label2idx, cls2idx=cls2idx)
+data = NerData.create(train_path=train_path, valid_path=valid_path, vocab_file=vocab_file)
 
-sup_labels = ['B_ORG', 'B_MISC', 'B_PER', 'I_PER', 'B_LOC', 'I_LOC', 'I_ORG', 'I_MISC']
+# sup_labels = ['B_ORG', 'B_MISC', 'B_PER', 'I_PER', 'B_LOC', 'I_LOC', 'I_ORG', 'I_MISC']
 
 model = BertBiLSTMAttnNMT.create(len(data.label2idx), bert_config_file, init_checkpoint_pt,
                                  enc_hidden_dim=128,
                                  dec_hidden_dim=128,
                                  dec_embedding_dim=16)
+print(model)
 
-
-def train(model, num_epochs=30, ):
+def train(model, num_epochs=20):
     learner = NerLearner(model, data,
-                         best_model_path=model_dir + "conll-2003/bilstm_attn_cased.cpt",
+                         best_model_path=model_dir + "/ontonote/bilstm_attn_cased_en.cpt",
                          lr=0.01, clip=1.0, sup_labels=data.id2label[5:],
                          t_total=num_epochs * len(data.train_dl))
 
-    learner.fit(num_epochs, target_metric='prec')
+    learner.fit(num_epochs, target_metric='f1')
 
     dl = get_bert_data_loader_for_predict(data_path + "valid.csv", learner)
 
@@ -122,7 +123,7 @@ def pred(model, best_model_path,
          result_conll_path,
          fname="test.csv"):
     learner = NerLearner(model, data,
-                         best_model_path=model_dir + "conll-2003/bilstm_attn_cased.cpt",
+                         best_model_path=model_dir + "/conll-2003/bilstm_attn_cased_.cpt",
                          lr=0.01, clip=1.0, sup_labels=data.id2label[5:])
     dl = get_bert_data_loader_for_predict(data_path + fname, learner)
 
@@ -138,6 +139,9 @@ def pred(model, best_model_path,
 
     write_true_and_pred_to_conll(tokens=tokens, y_true=y_true, y_pred=y_pred, conll_fpath=result_conll_path)
 
-pred(model=model,
-     result_conll_path=result_conll_path,
-     best_model_path=model_dir + "conll-2003/bilstm_attn_cased.cpt")
+
+# pred(model=model,
+#      result_conll_path=result_conll_path,
+#      best_model_path=model_dir + "conll-2003/bilstm_attn_cased.cpt")
+
+train(model=model)

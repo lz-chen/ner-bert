@@ -26,7 +26,8 @@ class BertBiLSTMEncoder(nn.Module):
         self.rnn_layers = rnn_layers
         self.use_cuda = use_cuda
         self.lstm = nn.LSTM(
-            self.embeddings.embedding_dim, hidden_dim // 2,
+            # self.embeddings.embedding_dim, hidden_dim // 2,
+            1024, hidden_dim // 2,
             rnn_layers, batch_first=True, bidirectional=True)
         self.hidden = None
         if use_cuda:

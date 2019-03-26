@@ -262,4 +262,5 @@ class NerLearner(object):
 
     def load_model(self, path=None):
         path = path if path else self.best_model_path
-        self.model.load_state_dict(torch.load(path))
+        map_location = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.model.load_state_dict(torch.load(path, map_location=map_location))
