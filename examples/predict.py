@@ -29,8 +29,9 @@ model = BertBiLSTMAttnNMT.create(len(data.label2idx), bert_config_file, init_che
 
 learner = NerLearner(model, data,
                      best_model_path=model_dir + "conll-2003/bilstm_attn_cased.cpt",
-                     lr=0.01, clip=1.0, sup_labels=data.id2label[5:],
-                     t_total=num_epochs * len(data.train_dl))
+                     lr=0.01, clip=1.0,
+                     sup_labels=[l for l in data.id2label if l not in ['<pad>', '[CLS]', 'X', 'B_O', 'I_']],
+          t_total = num_epochs * len(data.train_dl))
 learner.load_model(best_model_path)
 
 preds = learner.predict(dl)

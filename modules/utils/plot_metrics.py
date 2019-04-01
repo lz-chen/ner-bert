@@ -99,9 +99,13 @@ def bert_preds_to_ys(dl,
     true_labels, set_labels = _clean_tags(true_labels)
     set_labels = predefined_set_labels if len(set_labels) == 0 else set_labels
     set_labels -= set(ignore_labels)
-    assert all(len(pred_tokens[i]) == len(pred_labels[i]) for i in range(len(pred_tokens))) is True
-    assert all(len(pred_tokens[i]) == len(true_tokens[i]) for i in range(len(pred_tokens))) is True
-    assert all(len(true_tokens[i]) == len(true_labels[i]) for i in range(len(true_tokens))) is True
+    try:
+        assert all(len(pred_tokens[i]) == len(pred_labels[i]) for i in range(len(pred_tokens))) is True
+        assert all(len(pred_tokens[i]) == len(true_tokens[i]) for i in range(len(pred_tokens))) is True
+        assert all(len(true_tokens[i]) == len(true_labels[i]) for i in range(len(true_tokens))) is True
+    except AssertionError as e:
+        print(e)
+        print(true_tokens)
 
     return true_tokens, true_labels, pred_labels, list(set_labels)
 

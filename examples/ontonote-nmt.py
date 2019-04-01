@@ -17,13 +17,12 @@ sys.path.append("../")
 
 warnings.filterwarnings("ignore")
 
-data_path = "/media/liah/DATA/ner_data_other/norne/"
-# data_path = "/media/liah/DATA/ner_data_other/conll03/"
-train_path = data_path + "train.txt"  # "onto.train.ner"
-dev_path = data_path + "valid.txt"  # "onto.development.ner"
-test_path = data_path + "test.txt"  # "onto.test.ner"
+data_path = "/media/liah/DATA/ner_data_other/ontonote/"
+train_path = data_path + "onto.train.ner"
+dev_path = data_path + "onto.development.ner"
+test_path = data_path + "onto.test.ner"
 
-result_conll_path = Path('/media/liah/DATA/log/company_tagging_no/bert_norne.conll')
+result_conll_path = Path('/media/liah/DATA/log/company_tagging/bert_ontonote.conll')
 
 
 def read_data(input_file, tkn_field_idx=0, label_field_idx=-1, delim='\t'):
@@ -58,9 +57,9 @@ def read_data(input_file, tkn_field_idx=0, label_field_idx=-1, delim='\t'):
 
 
 delim = '\t'
-train_f = read_data(train_path, tkn_field_idx=1, delim=delim)
-dev_f = read_data(dev_path, tkn_field_idx=1, delim=delim)
-test_f = read_data(test_path, tkn_field_idx=1, delim=delim)
+train_f = read_data(train_path, delim=delim)
+dev_f = read_data(dev_path, delim=delim)
+test_f = read_data(test_path, delim=delim)
 
 train_df = pd.DataFrame(train_f, columns=["0", "1"])
 train_df.to_csv(data_path + "train.csv", index=False)
@@ -76,25 +75,16 @@ train_path = data_path + "train.csv"
 valid_path = data_path + "valid.csv"
 test_path = data_path + "test.csv"
 
-model_dir = "/media/liah/DATA/pretrained_models/bert/multi_cased_L-12_H-768_A-12/"
-# model_dir = '/media/liah/DATA/pretrained_models/bert/cased_L-24_H-1024_A-16'
+model_dir = '/media/liah/DATA/pretrained_models/bert/cased_L-24_H-1024_A-16'
 init_checkpoint_pt = os.path.join(model_dir, "pytorch_model.bin")
 bert_config_file = os.path.join(model_dir, "bert_config.json")
 vocab_file = os.path.join(model_dir, "vocab.txt")
 
 torch.cuda.is_available(), torch.cuda.current_device()
 
-# data = NerData.create(train_path, valid_path, vocab_file)
-# label2idx = {'<pad>': 0, '[CLS]': 1, 'B_O': 2, 'X': 3, 'B_PROD': 4, 'I_PROD': 5, 'B_LOC': 6, 'B_PER': 7, 'I_PER': 8,
-#              'B_GPE': 9, 'B_ORG': 10, 'B_DRV': 11, 'I_ORG': 12, 'I_DRV': 13, 'B_MISC': 14, 'I_GPE': 15, 'I_LOC': 16,
-#              'B_EVT': 17, 'I_EVT': 18, 'I_MISC': 19}
-# cls2idx = None
-# data = NerData.create(train_path, valid_path, vocab_file, for_train=False,
-#                       label2idx=label2idx, cls2idx=cls2idx)
 data = NerData.create(train_path=train_path, valid_path=valid_path, vocab_file=vocab_file)
 
 # sup_labels = ['B_ORG', 'B_MISC', 'B_PER', 'I_PER', 'B_LOC', 'I_LOC', 'I_ORG', 'I_MISC']
-sup_labels = ['B_ORG', 'B_MISC', 'B_PER', 'I_PER', 'B_LOC', 'I_LOC', 'I_ORG', 'I_MISC']
 
 model = BertBiLSTMAttnNMT.create(len(data.label2idx), bert_config_file, init_checkpoint_pt,
                                  enc_hidden_dim=128,
@@ -105,11 +95,12 @@ print(model)
 
 def train(model, num_epochs=20):
     learner = NerLearner(model, data,
-                         best_model_path=model_dir + "/norne/bilstm_attn_lr0_1_cased_en.cpt",
-                         lr=0.1, clip=1.0,
+                         best_model_path=model_dir + "/ontonote/bilstm_attn_cased_en_lr0_0001.cpt",
+                         lr=0.0001, clip=1.0,
                          sup_labels=[l for l in data.id2label if l not in ['<pad>', '[CLS]', 'X', 'B_O', 'I_']],
                          t_total=num_epochs * len(data.train_dl))
-
+    print('learner.sup_labels : ')
+    print(learner.sup_labels)
     learner.fit(num_epochs, target_metric='f1')
 
     dl = get_bert_data_loader_for_predict(data_path + "valid.csv", learner)
@@ -128,9 +119,9 @@ def pred(model, best_model_path,
          result_conll_path,
          fname="test.csv"):
     learner = NerLearner(model, data,
-                         best_model_path=model_dir + "/norne/bilstm_attn_cased_en.cpt",
+                         best_model_path=model_dir + "/ontonote/bilstm_attn_cased_en.cpt",
                          lr=0.01, clip=1.0,
-                         sup_labels=[l for l in data.id2label if l not in ['<pad>', '[CLS]', 'X', 'B_O', 'I_']])
+                         sup_labels=[l for l in data.id2label if l not in ['<pad>', '[CLS]', 'X', 'B_O', 'I_']], )
     dl = get_bert_data_loader_for_predict(data_path + fname, learner)
 
     learner.load_model(best_model_path)
